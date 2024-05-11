@@ -1,12 +1,10 @@
-
-//Lora Sender
-
+#define E32_TTL_1W
 #include "LoRa_E32.h" 
 #include <SoftwareSerial.h>
  
 SoftwareSerial mySerial(3, 4); //PCB versiyon 4.3 den sonra bu şekilde olmalı
 LoRa_E32 lora(&mySerial);
- 
+
 #define M0 7
 #define M1 6
  
@@ -18,87 +16,98 @@ LoRa_E32 lora(&mySerial);
  
 #define GonderilecekAdres 2 //Mesajın gönderileceği LoRa nın adresi
  
-struct Signal {
-  char text[15];
-  char konum[15];
-  byte intSayi[4];
-  byte floatSayi[10];
-  bool btn1;
-};
+void printParameters(struct Configuration configuration);
+void printModuleInformation(struct ModuleInformation moduleInformation); 
 
-Signal data;
- 
- 
+int i = 0; 
+struct Signal {
+  byte mesaj[4];
+} data;
+
 void setup() {
+  Serial.begin(9600);
+  while (!Serial) {
+	    ;
+    }
+	delay(100);
+
+  lora.begin();
   pinMode(M0, OUTPUT);
   pinMode(M1, OUTPUT);
-  Serial.println("M0 and M1 Output");
 
-  Serial.begin(9600);
-  lora.begin();
-  Serial.println("Serial -> begin, lora -> begin");
- 
   LoraE32Ayarlar();
- 
-  digitalWrite(M0, LOW);
-  digitalWrite(M1, LOW);
-  Serial.println("M0 and M1 Low");
- 
   delay(500);
-  
 }
- 
+
+
+
 void loop() {
- 
-  data.btn1 = false;
-  strcpy(data.text, "Teknofest");
-  *(int*)(data.intSayi) = 1453;
-  *(float*)(data.floatSayi) = 14.1415;
-  strcpy(data.konum, "ML102");
- 
+  *(int*)data.mesaj = i;
+  i++;
   ResponseStatus rs = lora.sendFixedMessage(highByte(GonderilecekAdres), lowByte(GonderilecekAdres), Kanal, &data, sizeof(Signal));
-  Serial.println(rs.getResponseDescription());
-  delay(2000);
+  //Serial.println(rs.getResponseDescription());
+  Serial.println(i);
+  delay(69);
 }
  
 void LoraE32Ayarlar() {
-  Serial.println("Lora setup -> begin");
-  
   digitalWrite(M0, HIGH);
   digitalWrite(M1, HIGH);
-  Serial.println("M0 and M1 HIGH");
+  Serial.println("Ayarlar Başlatıldı!");
 
-  ResponseStructContainer c;
-  c = lora.getConfiguration();
-  Configuration configuration = *(Configuration*)c.data;
- 
-  //DEĞİŞEBİLEN AYARLAR
-  // Üstte #define kısmında ayarlayınız
+  ResponseStructContainer c = lora.getConfiguration();
+  Configuration configuration;
+  memcpy(&configuration, c.data, sizeof(Configuration));
+  
   configuration.ADDL = lowByte(Adres);
   configuration.ADDH = highByte(Adres);
   configuration.CHAN = Kanal;
- 
-  //SEÇENEKLİ AYARLAR
-  configuration.SPED.airDataRate = AIR_DATA_RATE_010_24;  //Veri Gönderim Hızı 2,4 varsayılan
-  //configuration.SPED.airDataRate = AIR_DATA_RATE_000_03;  //Veri Gönderim Hızı 0,3 En uzak Mesafe
-  //configuration.SPED.airDataRate = AIR_DATA_RATE_101_192; //Veri Gönderim Hızı 19,2 En Hızlı
- 
- 
-  configuration.OPTION.transmissionPower = POWER_20;  //Geönderim Gücü max Varsayılan
-  //configuration.OPTION.transmissionPower = POWER_10;  //Geönderim Gücü min
-  //configuration.OPTION.transmissionPower = POWER_30; // E32 30d modülleri için bunu aktif et
- 
-  //GELİŞMİŞ AYARLAR
+  
+  configuration.SPED.airDataRate = AIR_DATA_RATE_010_24;
+  configuration.OPTION.transmissionPower = POWER_30;
   configuration.SPED.uartBaudRate = UART_BPS_9600;
   configuration.SPED.uartParity = MODE_00_8N1;
   configuration.OPTION.fec = FEC_0_OFF;
-  //configuration.OPTION.fec = FEC_1_ON;
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
-  //configuration.OPTION.fixedTransmission = FT_TRANSPARENT_TRANSMISSION;
   configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
   configuration.OPTION.ioDriveMode = IO_D_MODE_PUSH_PULLS_PULL_UPS;
  
-  // Ayarları KAYDET ve SAKLA
   ResponseStatus rs = lora.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
+  printParameters(configuration);
   c.close();
+  digitalWrite(M0, LOW);
+  digitalWrite(M1, LOW);
+  
+  Serial.println("Ayarlar Bitti!");
 }
+
+void printParameters(struct Configuration configuration) {
+  digitalWrite(M0, HIGH);
+  digitalWrite(M1, HIGH);
+	
+
+	Serial.println("----------------------------------------");
+
+	Serial.print(F("HEAD : "));  Serial.print(configuration.HEAD, BIN);Serial.print(" ");Serial.print(configuration.HEAD, DEC);Serial.print(" ");Serial.println(configuration.HEAD, HEX);
+	Serial.println(F(" "));
+	Serial.print(F("AddH : "));  Serial.println(configuration.ADDH, BIN);
+	Serial.print(F("AddL : "));  Serial.println(configuration.ADDL, BIN);
+	Serial.print(F("Chan : "));  Serial.print(configuration.CHAN, DEC); Serial.print(" -> "); Serial.println(configuration.getChannelDescription());
+	Serial.println(F(" "));
+	Serial.print(F("SpeedParityBit     : "));  Serial.print(configuration.SPED.uartParity, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getUARTParityDescription());
+	Serial.print(F("SpeedUARTDatte  : "));  Serial.print(configuration.SPED.uartBaudRate, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getUARTBaudRate());
+	Serial.print(F("SpeedAirDataRate   : "));  Serial.print(configuration.SPED.airDataRate, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getAirDataRate());
+
+	Serial.print(F("OptionTrans        : "));  Serial.print(configuration.OPTION.fixedTransmission, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getFixedTransmissionDescription());
+	Serial.print(F("OptionPullup       : "));  Serial.print(configuration.OPTION.ioDriveMode, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getIODroveModeDescription());
+	Serial.print(F("OptionWakeup       : "));  Serial.print(configuration.OPTION.wirelessWakeupTime, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getWirelessWakeUPTimeDescription());
+	Serial.print(F("OptionFEC          : "));  Serial.print(configuration.OPTION.fec, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getFECDescription());
+	Serial.print(F("OptionPower        : "));  Serial.print(configuration.OPTION.transmissionPower, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getTransmissionPowerDescription());
+
+	Serial.println("----------------------------------------");
+
+  digitalWrite(M0, LOW);
+  digitalWrite(M1, LOW);
+	
+}
+
