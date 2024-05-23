@@ -1,85 +1,124 @@
-//Lora Receiver
 #define E32_TTL_1W
 #include "LoRa_E32.h" 
 #include <SoftwareSerial.h>
- 
-SoftwareSerial mySerial(3, 4);
-LoRa_E32 lora(&mySerial);
+#include <TinyGPS.h>
  
 //PARAMETRE AYARLARI
-#define M0 7
-#define M1 6
-#define Adres 2 
+#define LoraRX 3 //Lora üzerinde 4
+#define LoraTX 4 //Lora üzerinde 3
+//#define GpsRX 8 //Gps üzerinde 9
+//#define GpsTX 9 //Gps üzerinde 8
+#define LoraM0 7
+#define LoraM1 6
+#define Adres 1   
 #define Kanal 20 
+#define GonderilecekAdres 2 
 
-int i = 0; 
+SoftwareSerial LoraSerial(LoraRX, LoraTX);
+
+SoftwareSerial gpsSerial(8,9);
+
+LoRa_E32 lora(&LoraSerial);
+TinyGPS gps;
+
+void printParameters(struct Configuration configuration);
+
 struct Signal {
-  byte paketNo[4];
-  byte x[10];
-  byte y[10];
-  byte z[10];
+  byte packetNo[1];
+  byte sat[1];
+  byte lat[10];
+  byte lng[10];
 } data;
- 
+
 void setup() {
   Serial.begin(9600);
-  while (!Serial) {;};
+  while (!Serial) {;}
+	delay(100);
 
-	delay(200);
+  gpsSerial.begin(9600);
+  delay(100);
+
   lora.begin();
-  pinMode(M0, OUTPUT);
-  pinMode(M1, OUTPUT);
+  pinMode(LoraM0, OUTPUT);
+  pinMode(LoraM0, OUTPUT);
   LoraE32Ayarlar();
   delay(200);
 }
- 
+
+byte i = 0; 
+
 void loop() {
-  while (lora.available() > 1) {
-    ResponseStructContainer rsc = lora.receiveMessage(sizeof(Signal));
-    struct Signal data = *(Signal*)rsc.data;
-    rsc.close();
-    Serial.print("Paket no: "); Serial.println(*(int*)data.paketNo);
-  }
+
+  int sensorValue = analogRead(A0); // A0 pininden analog veri oku
+  float voltage = sensorValue * (5.0 / 1023.0);
+  Serial.println(voltage);
+
+  unsigned long start = millis();
+  do {
+    Serial.println(gpsSerial.available());
+    if(gpsSerial.available()){
+      Serial.write(gpsSerial.read());
+    }
+    if(Serial.available()){
+      gpsSerial.write(Serial.read());
+    }
+  } while(millis() - start < 1000);
+
+  ResponseStatus rs = lora.sendFixedMessage(highByte(GonderilecekAdres), lowByte(GonderilecekAdres), Kanal, &data, sizeof(Signal));
+  Serial.println(rs.getResponseDescription());
+  //smartdelay(1000);
+
+  //*(byte*)data.sat = gps.satellites();
+  //float lat, lng;
+  //gps.f_get_position(&lat, &lng);
+  //*(float*)data.sat = lat;
+  //*(float*)data.sat = lng;
+  //*(byte*)data.packetNo = ++i;
+
+  //Serial.print("Packet No: "); Serial.print(*(byte*)data.packetNo);
+  //Serial.print("/ Sat: "); Serial.print(*(byte*)data.sat);
+  //Serial.print("/ Lat: "); Serial.print(lat, 6);
+  //Serial.print("/ Lng: "); Serial.println(lng, 6);
+}
+
+static void smartdelay(unsigned long ms){
+  
 }
  
 void LoraE32Ayarlar() {
-  
-  Serial.println("Configuration Started");
-  
-  digitalWrite(M0, HIGH);
-  digitalWrite(M1, HIGH);
+  digitalWrite(LoraM0, HIGH);
+  digitalWrite(LoraM0, HIGH);
+  Serial.println("Ayarlar Başlatıldı!");
 
-  ResponseStructContainer c;
-  c = lora.getConfiguration();
-  Configuration configuration = *(Configuration*)c.data;
- 
+  ResponseStructContainer c = lora.getConfiguration();
+  Configuration configuration;
+  memcpy(&configuration, c.data, sizeof(Configuration));
+  
   configuration.ADDL = lowByte(Adres);
   configuration.ADDH = highByte(Adres);
   configuration.CHAN = Kanal;
- 
-  //configuration.SPED.airDataRate = AIR_DATA_RATE_010_24; 
-  configuration.SPED.airDataRate = AIR_DATA_RATE_000_03;  
+  
+  configuration.SPED.airDataRate = AIR_DATA_RATE_010_24;
   configuration.OPTION.transmissionPower = POWER_30;
   configuration.SPED.uartBaudRate = UART_BPS_9600;
   configuration.SPED.uartParity = MODE_00_8N1;
-  configuration.OPTION.fec = FEC_0_OFF; 
+  configuration.OPTION.fec = FEC_0_OFF;
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
   configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
   configuration.OPTION.ioDriveMode = IO_D_MODE_PUSH_PULLS_PULL_UPS;
-
-  // Ayarları KAYDET ve SAKLA
+ 
   ResponseStatus rs = lora.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
-  Serial.println(rs.getResponseDescription());
-  digitalWrite(M0, LOW);
-  digitalWrite(M1, LOW);
   printParameters(configuration);
-
-  Serial.println("Configuration Ended");
   c.close();
+  digitalWrite(LoraM0, LOW);
+  digitalWrite(LoraM0, LOW);
+  
+  Serial.println("Ayarlar Bitti!");
 }
 
 void printParameters(struct Configuration configuration) {
-  digitalWrite(M0, HIGH);
-  digitalWrite(M1, HIGH);
+  digitalWrite(LoraM0, HIGH);
+  digitalWrite(LoraM0, HIGH);
 	
 	Serial.println("----------------------------------------");
 	Serial.print(F("HEAD : "));  Serial.print(configuration.HEAD, BIN);Serial.print(" ");Serial.print(configuration.HEAD, DEC);Serial.print(" ");Serial.println(configuration.HEAD, HEX);
@@ -98,8 +137,6 @@ void printParameters(struct Configuration configuration) {
 	Serial.print(F("OptionPower        : "));  Serial.print(configuration.OPTION.transmissionPower, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getTransmissionPowerDescription());
 	Serial.println("----------------------------------------");
 
-  digitalWrite(M0, LOW);
-  digitalWrite(M1, LOW);
+  digitalWrite(LoraM0, LOW);
+  digitalWrite(LoraM0, LOW);
 }
-
-

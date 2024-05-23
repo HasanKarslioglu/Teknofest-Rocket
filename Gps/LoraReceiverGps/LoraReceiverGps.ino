@@ -2,22 +2,23 @@
 #define E32_TTL_1W
 #include "LoRa_E32.h" 
 #include <SoftwareSerial.h>
- 
-SoftwareSerial mySerial(3, 4);
-LoRa_E32 lora(&mySerial);
- 
+
 //PARAMETRE AYARLARI
+#define LoraRX 3 //Lora üzerinde 4
+#define LoraTX 4 //Lora üzerinde 3
 #define M0 7
 #define M1 6
 #define Adres 2 
 #define Kanal 20 
 
-int i = 0; 
+SoftwareSerial LoraSerial(LoraRX, LoraTX);
+LoRa_E32 lora(&LoraSerial);
+
 struct Signal {
-  byte paketNo[4];
-  byte x[10];
-  byte y[10];
-  byte z[10];
+  byte packetNo[1];
+  byte sat[1];
+  byte lat[10];
+  byte lng[10];
 } data;
  
 void setup() {
@@ -34,10 +35,16 @@ void setup() {
  
 void loop() {
   while (lora.available() > 1) {
+ 
     ResponseStructContainer rsc = lora.receiveMessage(sizeof(Signal));
     struct Signal data = *(Signal*)rsc.data;
+
+    Serial.print("Packet No: "); Serial.print(*(byte*)data.packetNo);
+    Serial.print("/ Sat: "); Serial.print(*(byte*)data.sat);
+    Serial.print("/ Lat: "); Serial.print(*(float*)data.lat, 6);
+    Serial.print("/ Lng: "); Serial.println(*(float*)data.lng, 6);
+
     rsc.close();
-    Serial.print("Paket no: "); Serial.println(*(int*)data.paketNo);
   }
 }
  
