@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-SoftwareSerial gpsSerial(4,3);
+SoftwareSerial gpsSerial(8,9);
 
 void setup() {
   Serial.begin(9600);

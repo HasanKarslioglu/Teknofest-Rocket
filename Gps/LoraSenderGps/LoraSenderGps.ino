@@ -6,8 +6,8 @@
 //PARAMETRE AYARLARI
 #define LoraRX 3 //Lora üzerinde 4
 #define LoraTX 4 //Lora üzerinde 3
-#define GpsRX 8 //Gps üzerinde 9
-#define GpsTX 9 //Gps üzerinde 8
+//#define GpsRX 8 //Gps üzerinde 9
+//#define GpsTX 9 //Gps üzerinde 8
 #define LoraM0 7
 #define LoraM1 6
 #define Adres 1   
@@ -15,7 +15,8 @@
 #define GonderilecekAdres 2 
 
 SoftwareSerial LoraSerial(LoraRX, LoraTX);
-SoftwareSerial gpsSerial(GpsRX, GpsTX);
+
+SoftwareSerial gpsSerial(8,9);
 
 LoRa_E32 lora(&LoraSerial);
 TinyGPS gps;
@@ -47,31 +48,41 @@ void setup() {
 byte i = 0; 
 
 void loop() {
-  smartdelay(1000);
 
-  *(byte*)data.sat = gps.satellites();
-  float lat, lng;
-  gps.f_get_position(&lat, &lng);
-  *(float*)data.sat = lat;
-  *(float*)data.sat = lng;
-  *(byte*)data.packetNo = ++i;
+  int sensorValue = analogRead(A0); // A0 pininden analog veri oku
+  float voltage = sensorValue * (5.0 / 1023.0);
+  Serial.println(voltage);
 
-  Serial.print("Packet No: "); Serial.print(*(byte*)data.packetNo);
-  Serial.print("/ Sat: "); Serial.print(*(byte*)data.sat);
-  Serial.print("/ Lat: "); Serial.print(lat, 6);
-  Serial.print("/ Lng: "); Serial.println(lng, 6);
+  unsigned long start = millis();
+  do {
+    Serial.println(gpsSerial.available());
+    if(gpsSerial.available()){
+      Serial.write(gpsSerial.read());
+    }
+    if(Serial.available()){
+      gpsSerial.write(Serial.read());
+    }
+  } while(millis() - start < 1000);
 
   ResponseStatus rs = lora.sendFixedMessage(highByte(GonderilecekAdres), lowByte(GonderilecekAdres), Kanal, &data, sizeof(Signal));
   Serial.println(rs.getResponseDescription());
+  //smartdelay(1000);
+
+  //*(byte*)data.sat = gps.satellites();
+  //float lat, lng;
+  //gps.f_get_position(&lat, &lng);
+  //*(float*)data.sat = lat;
+  //*(float*)data.sat = lng;
+  //*(byte*)data.packetNo = ++i;
+
+  //Serial.print("Packet No: "); Serial.print(*(byte*)data.packetNo);
+  //Serial.print("/ Sat: "); Serial.print(*(byte*)data.sat);
+  //Serial.print("/ Lat: "); Serial.print(lat, 6);
+  //Serial.print("/ Lng: "); Serial.println(lng, 6);
 }
 
 static void smartdelay(unsigned long ms){
-  unsigned long start = millis();
-  do {
-    while(gpsSerial.available()){
-      gps.encode(gpsSerial.read());
-    }
-  } while(millis() - start < ms);
+  
 }
  
 void LoraE32Ayarlar() {

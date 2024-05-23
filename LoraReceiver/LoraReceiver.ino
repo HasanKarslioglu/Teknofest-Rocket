@@ -14,7 +14,10 @@ LoRa_E32 lora(&mySerial);
 
 int i = 0; 
 struct Signal {
-  byte mesaj[4];
+  byte paketNo[4];
+  byte x[10];
+  byte y[10];
+  byte z[10];
 } data;
  
 void setup() {
@@ -31,11 +34,10 @@ void setup() {
  
 void loop() {
   while (lora.available() > 1) {
- 
     ResponseStructContainer rsc = lora.receiveMessage(sizeof(Signal));
     struct Signal data = *(Signal*)rsc.data;
     rsc.close();
-    Serial.println(*(int*)data.mesaj);
+    Serial.print("Paket no: "); Serial.println(*(int*)data.paketNo);
   }
 }
  

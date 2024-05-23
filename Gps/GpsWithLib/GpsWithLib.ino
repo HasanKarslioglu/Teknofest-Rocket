@@ -1,11 +1,8 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 
-#DEFINE gpsRX 4;
-#DEFINE gpsTX 3;
-
 TinyGPS gps;
-SoftwareSerial gpsSerial(gpsRX, gpsTX);
+SoftwareSerial gpsSerial(8, 9);
 
 static void smartdelay(unsigned long ms);
 static void print_float(float val, float invalid, int len, int prec);

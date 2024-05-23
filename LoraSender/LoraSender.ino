@@ -2,7 +2,7 @@
 #define E32_TTL_1W
 #include "LoRa_E32.h" 
 #include <SoftwareSerial.h>
- 
+
 SoftwareSerial mySerial(3, 4);
 LoRa_E32 lora(&mySerial);
 
@@ -17,7 +17,7 @@ void printParameters(struct Configuration configuration);
 
 int i = 0; 
 struct Signal {
-  byte mesaj[4];
+  byte paketNo[4];
 } data;
 
 void setup() {
@@ -33,12 +33,12 @@ void setup() {
 }
 
 void loop() {
-  *(int*)data.mesaj = i;
+
+  *(int*)data.paketNo = i;
   i++;
   ResponseStatus rs = lora.sendFixedMessage(highByte(GonderilecekAdres), lowByte(GonderilecekAdres), Kanal, &data, sizeof(Signal));
-  Serial.println(rs.getResponseDescription());
-  Serial.println(i);
-  delay(100);
+  Serial.print("Paket No: "); Serial.print(*(int*)data.paketNo); Serial.print("\t"); Serial.println(rs.getResponseDescription());
+  delay(50);
 }
  
 void LoraE32Ayarlar() {
